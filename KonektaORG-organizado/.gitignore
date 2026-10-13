@@ -1,0 +1,13 @@
+# Java
+*.class
+
+# Dados locais (não enviar dados reais para o GitHub)
+konekta.db
+konekta-dados.txt
+konekta-dados.txt.tmp
+sqlite-jdbc-*.jar
+
+# VS Code / sistema
+.vscode/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,45 @@
+services:
+  konekta:
+    build: .
+    restart: unless-stopped
+    environment:
+      PORT: "8080"
+      KONEKTA_PRODUCAO: "true"
+      KONEKTA_DEMO: "false"
+      KONEKTA_PIN: ${KONEKTA_PIN:?Define KONEKTA_PIN no ficheiro .env}
+      KONEKTA_DB: /data/konekta.db
+      KONEKTA_ARQ: /data/konekta-dados.txt
+      KONEKTA_TEL_SUPORTE: ${KONEKTA_TEL_SUPORTE:-+258 84 000 0000}
+      KONEKTA_TEL_EMERGENCIA: ${KONEKTA_TEL_EMERGENCIA:-+258 84 000 0001}
+      KONEKTA_TEL_PAGAMENTOS: ${KONEKTA_TEL_PAGAMENTOS:-+258 84 000 0002}
+    volumes:
+      - konekta_data:/data
+    expose:
+      - "8080"
+    networks:
+      - backend
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:?Define DOMAIN no ficheiro .env}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - konekta
+    networks:
+      - backend
+
+volumes:
+  konekta_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  backend:

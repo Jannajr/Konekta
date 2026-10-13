@@ -1,0 +1,7 @@
+.git
+.vscode
+*.class
+konekta.db
+konekta-dados.txt
+sqlite-jdbc-*.jar
+build/

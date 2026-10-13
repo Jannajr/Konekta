@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B4F5C">
+<title>{{TITLE}} · KONEKTA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Public+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<header class="top">
+ <div class="capulana"></div>
+ <div class="wrap">
+  <a class="brand" href="#/inicio" aria-label="KONEKTA - início">
+   <svg width="34" height="20" viewBox="0 0 34 20" aria-hidden="true"><path d="M5 10H17M17 10H29" stroke="#0B4F5C" stroke-width="3"/><circle cx="5" cy="10" r="4.5" fill="#F2B62D"/><circle cx="17" cy="10" r="4.5" fill="#B8305E"/><circle cx="29" cy="10" r="4.5" fill="#0B4F5C"/></svg>
+   KONEKTA
+  </a>
+  <button class="burger" id="burger" aria-label="Abrir menu" aria-expanded="false">&#9776;</button>
+  <nav class="nav" id="nav">
+   <a href="#pedir" data-r="inicio">Pedir serviço</a>
+   <a href="#/pedidos" data-r="pedidos">Meus pedidos</a>
+   <a href="#/prestador" data-r="prestador">Prestador</a>
+   <a href="#/gestao" data-r="gestao">Gestão</a>
+   <a href="#/entrar" class="conta" id="navConta" data-r="entrar">Entrar</a>
+  </nav>
+ </div>
+</header>
+<main>
+{{MAIN}}
+</main>
+<footer>
+ <div class="wrap">
+  <p><b>KONEKTA</b> · Nampula, Moçambique</p>
+  <p>Cliente e prestador nunca falam diretamente. Tudo passa pelo Centro de Gestão KONEKTA. Paga 50% ao aprovar o orçamento e 50% quando o serviço estiver concluído. O dinheiro fica retido no KONEKTA Pay até 24 horas depois do pagamento final.</p>
+  <p id="rodapeTel"></p>
+ </div>
+</footer>
+
+<button class="ajuda-fab" id="ajudaBtn" aria-haspopup="dialog">&#9742; Ajuda</button>
+<div class="ajuda" id="ajuda" role="dialog" aria-modal="true" aria-label="Ajuda e contactos" hidden>
+ <div class="ajuda-in">
+  <button class="ajuda-x" id="ajudaX" aria-label="Fechar">&times;</button>
+  <h3>Precisa de ajuda?</h3>
+  <div id="ajudaLista"></div>
+  <p class="small" style="margin:12px 0 0">Em caso de risco de vida, ligue primeiro aos serviços de emergência da sua zona.</p>
+ </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const KT={{CFG}};
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+const TOKEN=()=>localStorage.getItem('konekta_token');
+function guardarSessao(r){localStorage.setItem('konekta_token',r.token);localStorage.setItem('konekta_nome',r.nome);atualizarNav();}
+function limparSessao(){localStorage.removeItem('konekta_token');localStorage.removeItem('konekta_nome');atualizarNav();}
+function atualizarNav(){
+  const n=(localStorage.getItem('konekta_nome')||'').split(' ')[0];
+  $('#navConta').textContent=TOKEN()?(n?('Olá, '+n):'A minha conta'):'Entrar';
+}
+async function api(path,data){
+  const d={...(data||{})};
+  if(!d.token&&TOKEN())d.token=TOKEN();
+  let r;
+  try{r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(d)});}
+  catch(e){throw new Error('Sem ligação ao servidor. Verifique a internet.');}
+  let j={};try{j=await r.json();}catch(e){}
+  if(!r.ok){
+    if(r.status===401&&/Sessão/.test(j.erro||''))limparSessao();
+    throw new Error(j.erro||'Ocorreu um erro. Tente novamente.');
+  }
+  return j;
+}
+const MT=n=>new Intl.NumberFormat('pt-MZ',{maximumFractionDigits:0}).format(n||0)+' MT';
+function toast(msg,err){const t=document.createElement('div');t.className='toast'+(err?' err':'');t.textContent=msg;t.setAttribute('role','status');document.body.appendChild(t);setTimeout(()=>t.remove(),4200);}
+function mapa(el,centro,zoom){
+  const road=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'});
+  const sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Imagens &copy; Esri'});
+  const m=L.map(el,{layers:[road]}).setView(centro,zoom);
+  L.control.layers({'Rodoviário':road,'Satélite':sat}).addTo(m);
+  return m;
+}
+const CATS={
+ TECNICA:{nome:'Técnica',txt:'Eletricidade, canalização, informática…',cats:['Eletricidade','Mecânica','Informática','Construção','Canalização','Pintura','Gelo e refrigeração','Outro serviço técnico']},
+ LOG:{nome:'Logística',txt:'Comida, mercado e transporte de cargas',cats:['Comida e mercado','Carga leve (motoboy)','Carrinha','Camião']},
+ SAUDE:{nome:'Saúde',txt:'Consultas online e psicologia',cats:['Consulta geral online','Psicologia online']}
+};
+const NOMEMOD={TECNICA:'Técnica',LOG:'Logística',SAUDE:'Saúde'};
+const ESTADOS={RECEBIDO:'Recebido',ORCAMENTO:'Orçamento pronto',APROVADO:'Entrada de 50% paga',EM_CURSO:'Em curso',CONCLUIDO:'Concluído',CANCELADO:'Cancelado'};
+const PAGTXT={NENHUM:'',PARCIAL:'50% retido',RETIDO:'100% retido',LIBERADO:'Libertado ao prestador',REEMBOLSADO:'Reembolsado'};
+function etiqueta(e,p){return (e==='CONCLUIDO'&&p==='PARCIAL')?'Falta pagamento final':(ESTADOS[e]||e);}
+const METODOS='<label>Método de pagamento<select class="met"><option>M-Pesa</option><option>e-Mola</option><option>mKesh</option></select></label>';
+const tl=n=>'tel:'+n.replace(/[^0-9+]/g,'');
+
+/* ---------- navegação dentro da mesma página ---------- */
+const FABRICAS={},INST={},ROTAS=['inicio','pedidos','entrar','prestador','gestao'];
+const TITULOS={inicio:'Serviços em 3 cliques',pedidos:'Meus pedidos',entrar:'A minha conta',prestador:'Área do prestador',gestao:'Centro de Gestão'};
+let ATUAL='';
+function registar(nome,fabrica){FABRICAS[nome]=fabrica;}
+function ir(destino){location.hash=(destino==='pedir')?'#pedir':'#/'+destino;}
+function parseRota(){
+  const h=location.hash;
+  if(!h.startsWith('#/'))return {nome:'inicio',param:'',ancora:h.slice(1)};
+  const partes=h.slice(2).split('/');
+  let nome=partes[0]||'inicio';
+  if(!ROTAS.includes(nome))nome='inicio';
+  return {nome:nome,param:decodeURIComponent(partes.slice(1).join('/')),ancora:''};
+}
+function rotear(){
+  const r=parseRota();
+  if(ATUAL&&ATUAL!==r.nome&&INST[ATUAL]&&INST[ATUAL].hide)INST[ATUAL].hide();
+  $$('.view').forEach(v=>{v.hidden=(v.id!=='v-'+r.nome);});
+  if(!INST[r.nome]&&FABRICAS[r.nome])INST[r.nome]=FABRICAS[r.nome](document.getElementById('v-'+r.nome))||{};
+  ATUAL=r.nome;
+  document.title=(TITULOS[r.nome]||'KONEKTA')+' · KONEKTA';
+  $$('#nav a').forEach(a=>a.classList.toggle('ativo',a.dataset.r===r.nome));
+  $('#nav').classList.remove('open');$('#burger').setAttribute('aria-expanded','false');
+  const inst=INST[r.nome];
+  if(inst&&inst.show)inst.show(r.param);
+  window.dispatchEvent(new Event('resize'));
+  if(r.ancora){const el=document.getElementById(r.ancora);if(el)el.scrollIntoView();}else{window.scrollTo(0,0);}
+}
+window.addEventListener('hashchange',rotear);
+(function(){
+  const mp={'/entrar':'entrar','/acompanhar':'pedidos','/prestador':'prestador','/gestao':'gestao'};
+  if(location.pathname!=='/'){
+    const h=(location.hash&&location.hash!=='#')?location.hash:'#/'+(mp[location.pathname]||'inicio');
+    history.replaceState(null,'','/'+h);
+  }
+})();
+$('#burger').onclick=()=>{const n=$('#nav');const o=n.classList.toggle('open');$('#burger').setAttribute('aria-expanded',o);};
+(function(){
+  atualizarNav();
+  const wa=n=>'https://wa.me/'+n.replace(/[^0-9]/g,'');
+  $('#ajudaLista').innerHTML=[['Dúvidas e suporte',KT.suporte],['Emergências (24h)',KT.emergencia],['Pagamentos',KT.pagamentos]].map(x=>
+    '<div class="ctt"><div><b>'+x[0]+'</b><br><span class="small">'+esc(x[1])+'</span></div><div class="ctt-a"><a class="btn sm" href="'+tl(x[1])+'">Ligar</a><a class="btn sm ghost" target="_blank" rel="noopener" href="'+wa(x[1])+'">WhatsApp</a></div></div>').join('');
+  $('#rodapeTel').innerHTML='Suporte: <a href="'+tl(KT.suporte)+'">'+esc(KT.suporte)+'</a> · Emergências: <a href="'+tl(KT.emergencia)+'">'+esc(KT.emergencia)+'</a> · Pagamentos: <a href="'+tl(KT.pagamentos)+'">'+esc(KT.pagamentos)+'</a>';
+  $('#ajudaBtn').onclick=()=>{$('#ajuda').hidden=false;};
+  $('#ajudaX').onclick=()=>{$('#ajuda').hidden=true;};
+  $('#ajuda').onclick=e=>{if(e.target.id==='ajuda')$('#ajuda').hidden=true;};
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')$('#ajuda').hidden=true;});
+})();
+</script>
+<script>
+{{SCRIPT}}
+</script>
+<script>rotear();</script>
+</body>
+</html>
