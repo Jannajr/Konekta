@@ -1481,7 +1481,7 @@ public class Konekta {
 <div class="wrap sec" style="max-width:820px">
  <div id="entrada">
   <h1 style="font-size:clamp(1.8rem,6vw,2.6rem)">Área do prestador</h1>
-  <p>Receba pedidos aprovados pela KONEKTA. O cliente paga 50% antes e 50% no fim do trabalho. A KONEKTA retém <b>15%</b> e o seu pagamento é libertado 24 horas depois do pagamento final. Nunca vê o nome nem o telefone do cliente.</p>
+  <p>Receba pedidos aprovados pela KONEKTA. O cliente paga 50% antes e 50% no fim do trabalho. A KONEKTA retém <b>25%</b> e o seu pagamento é libertado 24 horas depois do pagamento final. Nunca vê o nome nem o telefone do cliente.</p>
   <div class="tabs"><button class="tab on" data-t="entrar">Entrar</button><button class="tab" data-t="registar">Registar</button></div>
   <div class="card" id="prTabEntrar">
    <form id="fLogin">
